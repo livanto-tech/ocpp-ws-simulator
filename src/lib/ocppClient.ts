@@ -11,6 +11,7 @@ import {
   type StationConfigKey,
   sessionSocPct,
   useEmulatorStore,
+  type EmulatorConfig,
 } from "../store/emulatorStore";
 
 type Timer = ReturnType<typeof setInterval>;
@@ -208,6 +209,41 @@ class OCPPService {
     return useEmulatorStore.getState();
   }
 
+  private getHandshakeHeaders(
+    url: string,
+    config: EmulatorConfig,
+  ): Record<string, string> {
+    let host = "";
+    try {
+      host = new URL(url).host;
+    } catch {
+      host = config.endpoint;
+    }
+
+    const headers: Record<string, string> = {
+      Host: host,
+      Upgrade: "websocket",
+      Connection: "Upgrade",
+      "Sec-WebSocket-Version": "13",
+      "Sec-WebSocket-Protocol": config.ocppVersion,
+    };
+
+    if (typeof window !== "undefined" && window.location?.origin) {
+      headers.Origin = window.location.origin;
+    }
+
+    if (config.securityProfile === 1 && config.basicAuthPassword) {
+      const credentials = `${config.chargePointId}:${config.basicAuthPassword}`;
+      const encoded =
+        typeof btoa !== "undefined"
+          ? btoa(credentials)
+          : Buffer.from(credentials).toString("base64");
+      headers.Authorization = `Basic ${encoded}`;
+    }
+
+    return headers;
+  }
+
   // ─── Connection ────────────────────────────────────────────────────────────
 
   async connect() {
@@ -233,12 +269,22 @@ class OCPPService {
         const s = useEmulatorStore.getState();
         s.setStatus(this.chargerId, "connected");
         s.setConnectedAt(this.chargerId, Date.now());
+        const fullUrl = `${config.endpoint.replace(/\/+$/, "")}/${config.chargePointId}`;
+        const requestHeaders = this.getHandshakeHeaders(fullUrl, config);
+        const protocol = this.client?.protocol || config.ocppVersion;
         s.addLog(this.chargerId, {
           direction: "System",
           action: "Connected",
           payload: {
-            url: config.endpoint,
-            protocol: config.ocppVersion,
+            url: fullUrl,
+            protocol,
+            requestHeaders,
+            responseHeaders: {
+              Status: "101 Switching Protocols",
+              Upgrade: "websocket",
+              Connection: "Upgrade",
+              "Sec-WebSocket-Protocol": protocol,
+            },
           },
         });
         this.sendBootNotification();
@@ -255,7 +301,12 @@ class OCPPService {
         const isLocal =
           config.endpoint.includes("localhost") ||
           config.endpoint.includes("127.0.0.1");
-        const payload: Record<string, unknown> = { message };
+        const fullUrl = `${config.endpoint.replace(/\/+$/, "")}/${config.chargePointId}`;
+        const payload: Record<string, unknown> = {
+          message,
+          url: fullUrl,
+          requestHeaders: this.getHandshakeHeaders(fullUrl, config),
+        };
         if (isHttps && isLocal) {
           payload.hint =
             "Connecting to ws://localhost from HTTPS? Your browser may block insecure WebSockets. Allow 'Insecure content' or 'Local network access' in site settings, or open the Localhost Guide in the header.";
@@ -291,20 +342,32 @@ class OCPPService {
       });
 
       this.client.on("connecting", (info: { url: string }) => {
+        const headers = this.getHandshakeHeaders(info.url, config);
         useEmulatorStore.getState().addLog(this.chargerId, {
           direction: "System",
           action: "Connecting",
-          payload: { url: info.url },
+          payload: {
+            url: info.url,
+            endpoint: config.endpoint,
+            chargePointId: config.chargePointId,
+            subprotocol: config.ocppVersion,
+            requestHeaders: headers,
+          },
         });
       });
 
       this.client.on(
         "reconnect",
         (info: { attempt: number; delay: number }) => {
+          const fullUrl = `${config.endpoint.replace(/\/+$/, "")}/${config.chargePointId}`;
           useEmulatorStore.getState().addLog(this.chargerId, {
             direction: "System",
             action: "Reconnecting",
-            payload: info,
+            payload: {
+              ...info,
+              url: fullUrl,
+              requestHeaders: this.getHandshakeHeaders(fullUrl, config),
+            },
           });
         },
       );
