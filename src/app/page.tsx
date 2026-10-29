@@ -6,10 +6,10 @@ import { AUTH_COOKIE, hasSession, isAuthEnabled } from "@/lib/auth";
 import { pageMetadata } from "@/lib/seo";
 import { DEFAULT_DESCRIPTION } from "@/lib/site";
 import {
-  appNode,
-  authorNode,
-  libraryNode,
-  websiteNode,
+    appNode,
+    authorNode,
+    libraryNode,
+    websiteNode,
 } from "@/lib/structured-data";
 
 // The home page is the product itself, so its title leads with the main
@@ -34,6 +34,11 @@ async function initialAuth() {
 }
 
 export default async function Home() {
+  const masterCredentials = {
+    username: process.env.MASTER_USERNAME || "",
+    password: process.env.MASTER_PASSWORD || "",
+  };
+
   return (
     <>
       <JsonLd
@@ -42,7 +47,10 @@ export default async function Home() {
           "@graph": [websiteNode, appNode, authorNode, libraryNode],
         }}
       />
-      <EmulatorApp initialAuth={await initialAuth()} />
+      <EmulatorApp
+        initialAuth={await initialAuth()}
+        masterCredentials={masterCredentials}
+      />
     </>
   );
 }

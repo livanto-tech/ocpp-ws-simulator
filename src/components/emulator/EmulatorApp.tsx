@@ -3,12 +3,6 @@
 import { PanelBottomOpen } from "lucide-react";
 
 import { useEffect, useLayoutEffect, useState } from "react";
-import { AuthGate } from "./AuthGate";
-import { ChargerTabBar } from "./ChargerTabBar";
-import { ConfigPanel } from "./ConfigPanel";
-import { ConnectorsView } from "./EmulatorTabs";
-import { HeaderBar } from "./HeaderBar";
-import { LogsPanel } from "./LogsPanel";
 import { Button } from "@/components/ui/button";
 import {
   ResizableHandle,
@@ -17,6 +11,12 @@ import {
 } from "@/components/ui/resizable";
 import { cn } from "@/lib/utils";
 import { useEmulatorStore } from "@/store/emulatorStore";
+import { AuthGate } from "./AuthGate";
+import { ChargerTabBar } from "./ChargerTabBar";
+import { ConfigPanel } from "./ConfigPanel";
+import { ConnectorsView } from "./EmulatorTabs";
+import { HeaderBar } from "./HeaderBar";
+import { LogsPanel } from "./LogsPanel";
 
 /**
  * The simulator UI. Rendered on the server too (for crawlers and first
@@ -24,9 +24,11 @@ import { useEmulatorStore } from "@/store/emulatorStore";
  */
 export function EmulatorApp({
   initialAuth,
+  masterCredentials,
 }: {
   /** Sign-in state read from the session cookie on the server. */
   initialAuth?: "authed" | "login";
+  masterCredentials?: { username?: string; password?: string };
 }) {
   // Restore saved chargers before the first paint. The store skips this at
   // startup so the server HTML and the first client render are identical.
@@ -154,7 +156,7 @@ export function EmulatorApp({
   };
 
   return (
-    <AuthGate initialState={initialAuth}>
+    <AuthGate initialState={initialAuth} masterCredentials={masterCredentials}>
       <div className="h-full w-full flex flex-col overflow-hidden">
         {/* Bypass block (WCAG 2.4.1): first tab stop jumps past the header */}
         <button

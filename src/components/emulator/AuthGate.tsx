@@ -3,30 +3,30 @@
 import { GithubIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
-  BatteryCharging,
-  Blocks,
-  BookOpen,
-  Boxes,
-  CircleAlert,
-  Eye,
-  EyeOff,
-  KeyRound,
-  Loader2,
-  Lock,
-  Network,
-  ScrollText,
-  ShieldCheck,
-  TriangleAlert,
-  User,
+    BatteryCharging,
+    Blocks,
+    BookOpen,
+    Boxes,
+    CircleAlert,
+    Eye,
+    EyeOff,
+    KeyRound,
+    Loader2,
+    Lock,
+    Network,
+    ScrollText,
+    ShieldCheck,
+    TriangleAlert,
+    User,
 } from "lucide-react";
 import Link from "next/link";
 import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
+    createContext,
+    useCallback,
+    useContext,
+    useEffect,
+    useRef,
+    useState,
 } from "react";
 import { BrandMark } from "@/components/BrandMark";
 import { Button } from "@/components/ui/button";
@@ -111,9 +111,21 @@ function ProjectLinks({ className }: { className?: string }) {
   );
 }
 
-function LoginPage({ onSuccess }: { onSuccess: () => void }) {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+function LoginPage({
+  onSuccess,
+  defaultUsername = "",
+  defaultPassword = "",
+}: {
+  onSuccess: () => void;
+  defaultUsername?: string;
+  defaultPassword?: string;
+}) {
+  const initialUsername =
+    defaultUsername || process.env.MASTER_USERNAME || "";
+  const initialPassword =
+    defaultPassword || process.env.MASTER_PASSWORD || "";
+  const [username, setUsername] = useState(initialUsername);
+  const [password, setPassword] = useState(initialPassword);
   const [showPw, setShowPw] = useState(false);
   const [capsLock, setCapsLock] = useState(false);
   const [missing, setMissing] = useState({ username: false, password: false });
@@ -121,6 +133,15 @@ function LoginPage({ onSuccess }: { onSuccess: () => void }) {
   const [loading, setLoading] = useState(false);
   const userRef = useRef<HTMLInputElement>(null);
   const passRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (initialUsername) {
+      setUsername((u) => u || initialUsername);
+    }
+    if (initialPassword) {
+      setPassword((p) => p || initialPassword);
+    }
+  }, [initialUsername, initialPassword]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -440,10 +461,12 @@ function LoginPage({ onSuccess }: { onSuccess: () => void }) {
    ═══════════════════════════════════════════ */
 export function AuthGate({
   initialState,
+  masterCredentials,
   children,
 }: {
   /** Session state read from the cookie on the server, when available. */
   initialState?: "authed" | "login";
+  masterCredentials?: { username?: string; password?: string };
   children: React.ReactNode;
 }) {
   const authEnabled = process.env.NEXT_PUBLIC_ALLOW_AUTH === "true";
@@ -493,7 +516,13 @@ export function AuthGate({
   }
 
   if (state === "login") {
-    return <LoginPage onSuccess={() => setState("authed")} />;
+    return (
+      <LoginPage
+        onSuccess={() => setState("authed")}
+        defaultUsername={masterCredentials?.username}
+        defaultPassword={masterCredentials?.password}
+      />
+    );
   }
 
   return <AuthCtx.Provider value={{ logout }}>{children}</AuthCtx.Provider>;
